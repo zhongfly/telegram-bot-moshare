@@ -10,11 +10,11 @@ import os
 import requests
 from functools import wraps
 
-token = 'xxxxxx'
-admin = [12345678]
+token = 'xxxxxx'#填入bot的token
+admin = [12345678]#填入具有操作权限tg账户的id（通过@getidsbot）
 updater = Updater(token, request_kwargs={
     'proxy_url': 'socks5://127.0.0.1:1080/'
-})
+})#设置代理
 s = requests.Session()
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',

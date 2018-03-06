@@ -1,0 +1,8 @@
+requests[socks]
+requests_toolbelt
+lxml
+html5lib
+beautifulsoup4
+pillow
+pysocks
+python-telegram-bot>=10.0.0

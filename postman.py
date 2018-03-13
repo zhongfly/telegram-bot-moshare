@@ -93,7 +93,7 @@ def login(qanswer, session):
     except Exception as e:
         raise
     data = {
-        'answer': answer
+        'answer': answer，
         'cktime': '31536000',
         'hideid': '0',
         'jumpurl': 'index.php',

@@ -25,7 +25,7 @@ proxies = {
     'http': 'socks5://127.0.0.1:1080',
     'https': 'socks5://127.0.0.1:1080'
 }
-defalt_proxies = proxies#如果能直接访问，则填None
+defalt_proxies = proxies
 
 
 def save_cookies(session, file='cookie.txt'):
@@ -44,14 +44,16 @@ def islogin(session):
     else:
         pass
     try:
-        r = session.get('http://moeshare.com', headers=headers,
+        r = session.get('http://moeshare.com/u.php', headers=headers,
                         proxies=defalt_proxies)
     except Exception as e:
-        r = session.get('http://moeshare.com',
+        r = session.get('http://moeshare.com/u.php',
                         headers=headers, proxies=proxies)
+    r.encoding = 'utf-8'
     soup = BeautifulSoup(r.text, 'lxml')
-    flag = soup.find(class_='login fr')
-    if flag != None:
+    flag = soup.title.text
+    print(flag)
+    if flag != '提示信息 - Powered by phpwind':
         result = '已登录'
     else:
         result = '未登录'
@@ -196,18 +198,20 @@ def dailybonus(session):
     r.encoding = 'utf-8'
     soup = BeautifulSoup(r.text, 'lxml')
     verify = soup.find('input', attrs={'name': 'verify'})['value']
-    nowtime = str(round(time.time() * 1000))
-    post_url = 'http://moeshare.com/jobcenter.php?action=punch&verify=' + \
-        verify+'&nowtime='+nowtime+'&verify='+verify
+    post_url = 'http://moeshare.com/jobcenter.php?action=punch&verify=' + verify + '&step=2'
     try:
         r = session.post(
-            post_url, data={'step': '2', }, headers=headers, proxies=defalt_proxies)
+            post_url, headers=headers, proxies=defalt_proxies)
     except Exception as e:
         r = session.post(
-            post_url, data={'step': '2', }, headers=headers, proxies=proxies)
+            post_url, headers=headers, proxies=proxies)
     r.encoding = 'utf-8'  # 纠正编码
     pattern = re.compile('(?<=(\"message\":\')).+(?=(\',\"flag\"))')
-    result = pattern.search(r.text).group()
+    try:
+        result = pattern.search(r.text).group()
+    except Exception as e:
+        print(r.text[:30])
+        result = 'no result'
     save_cookies(session)
     return result
 
@@ -217,6 +221,7 @@ def get_news(url):
     acgdog_pattern = re.compile(r'http(s)?://www\.acgdoge\.net/archives/\d+')
     dmzj_pattern = re.compile(
         r'http(s)?://(m)?news\.dmzj\.com/article/\d+\.html')
+    qq_pattern = re.compile(r'http(s)?://comic\.qq\.com/a/\d+/\d+\.htm')
     if acgdog_pattern.search(url):
         url = acgdog_pattern.search(url).group()
         r = requests.get(url, headers=headers)
@@ -250,6 +255,16 @@ def get_news(url):
         news['title'] = '[{0}]{1}'.format(time, title)
         content_divs = soup.find(class_="news_content_con").find_all('p')
         img_src = 'src'
+    elif qq_pattern.search(url):
+        url = acgdog_pattern.search(url).group()
+        r = requests.get(url, headers=headers)
+        soup = BeautifulSoup(r.text, "lxml")
+        soup = soup.find(class_="qq_article")
+        title = soup.find('h1').text.rstrip()
+        time = soup.find(class_="a_time").text[2:10].replace('-', '')
+        news['title'] = '[{0}]{1}'.format(time, title)
+        content_divs = soup.find(bosszone="content")
+        img_src = 'src'
     else:
         return 0
     content = '[url]{}[/url]'.format(url)+'\n'
@@ -264,5 +279,3 @@ def get_news(url):
             content = content+'{}\n'.format(div.text)
     news['content'] = content
     return news
-
-

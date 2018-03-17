@@ -25,7 +25,7 @@ proxies = {
     'http': 'socks5://127.0.0.1:1080',
     'https': 'socks5://127.0.0.1:1080'
 }
-defalt_proxies = proxies
+defalt_proxies = proxies#如果能直接访问，则填None
 
 
 def save_cookies(session, file='cookie.txt'):
@@ -93,7 +93,7 @@ def login(qanswer, session):
     except Exception as e:
         raise
     data = {
-        'answer': answer，
+        'answer': answer,
         'cktime': '31536000',
         'hideid': '0',
         'jumpurl': 'index.php',
@@ -256,14 +256,14 @@ def get_news(url):
         content_divs = soup.find(class_="news_content_con").find_all('p')
         img_src = 'src'
     elif qq_pattern.search(url):
-        url = acgdog_pattern.search(url).group()
+        url = qq_pattern.search(url).group()
         r = requests.get(url, headers=headers)
         soup = BeautifulSoup(r.text, "lxml")
-        soup = soup.find(class_="qq_article")
+        soup = soup.find(id="Main-Article-QQ")
         title = soup.find('h1').text.rstrip()
-        time = soup.find(class_="a_time").text[2:10].replace('-', '')
+        time = soup.find(class_="article-time").text[2:10].replace('-', '')
         news['title'] = '[{0}]{1}'.format(time, title)
-        content_divs = soup.find(bosszone="content")
+        content_divs = soup.find(id="Cnt-Main-Article-QQ")
         img_src = 'src'
     else:
         return 0

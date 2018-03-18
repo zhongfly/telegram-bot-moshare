@@ -63,6 +63,13 @@ def dailybonus_handler(bot, update):
     update.message.reply_text(result, quote=True)
 
 
+def deljob(chat_data):
+    if 'job' in chat_data:
+        job = chat_data['job']
+        job.schedule_removal()
+        del chat_data['job']
+
+
 def post_timeout(bot, job):
     bot.editMessageText(
         chat_id=job.context[0], message_id=job.context[1], text='已结束等待')
@@ -70,23 +77,27 @@ def post_timeout(bot, job):
 
 
 @restricted
-def post_start(bot, update, job_queue):
+def post_start(bot, update, job_queue, chat_data):
     chat_id = update.message.chat_id
     logger.info('开始发帖流程')
     msg = update.message.reply_text('等待输入网址。。。\n/cancel 取消', quote=True)
-    global j
-    j = job_queue.run_once(post_timeout, 30, context=(chat_id, msg.message_id))
+    job = job_queue.run_once(
+        post_timeout, 30, context=(chat_id, msg.message_id))
+    chat_data['job'] = job
+    chat_data['msg'] = msg.message_id
     return GETURL
 
 
 @restricted
-def geturl(bot, update):
-    j.schedule_removal()
+def geturl(bot, update, chat_data):
+    deljob(chat_data)
     text = update.message.text
     chat_id = update.message.chat_id
     logger.info("收到链接{}，进行分析".format(text))
-    global news
+    bot.editMessageText(
+        chat_id=chat_id, message_id=chat_data['msg'], text='已输入')
     news = get_news(text)
+    chat_data['news'] = news
     if news != 0:
         confirm_btn = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text='确认', callback_data='ok'),
@@ -94,6 +105,7 @@ def geturl(bot, update):
         ])
         msg = update.message.reply_text(
             news['title'], quote=True, reply_markup=confirm_btn)
+        chat_data['msg'] = msg.message_id
         logger.info("链接分析结果：“{}”".format(news['title']))
         return CONFIRM
     else:
@@ -103,37 +115,41 @@ def geturl(bot, update):
 
 
 @restricted
-def confirm_callback(bot, update):
+def confirm_callback(bot, update, chat_data):
     query = update.callback_query
+    chat_id = query.message.chat_id
+    news = chat_data['news']
     if query.data == 'ok':
-        result = post_news(news,s)
+        result = post_news(news, s)
         logger.info("执行发帖操作，标题为“{}”，结果为：【{}】".format(news['title'], result))
-        bot.sendMessage(text=result, chat_id=query.message.chat_id)
+        bot.editMessageText(chat_id=chat_id, message_id=chat_data['msg'], text='{}\n结果为：{}'.format(
+            news['title'], result))
     else:
         logger.info("确认未通过，取消发帖操作。")
-        bot.sendMessage(text='已取消操作', chat_id=query.message.chat_id)
-        my_news = None
+        bot.editMessageText(
+            chat_id=chat_id, message_id=chat_data['msg'], text='已取消操作')
     logger.info("结束会话。")
     return ConversationHandler.END
 
 
-def cancel(bot, update):
+def cancel(bot, update, chat_data):
+    deljob(chat_data)
     user = update.message.from_user
-    news = None
-    logger.info("取消操作，结束会话。", user.first_name)
+    logger.info("%s 取消操作，结束会话。", user.first_name)
     update.message.reply_text('已取消', quote=True)
     return ConversationHandler.END
 
 
 post_handler = ConversationHandler(
-    entry_points=[CommandHandler('post', post_start, pass_job_queue=True)],
+    entry_points=[CommandHandler(
+        'post', post_start, pass_job_queue=True, pass_chat_data=True)],
 
     states={
-        GETURL: [MessageHandler(Filters.text, geturl)],
-        CONFIRM: [CallbackQueryHandler(confirm_callback)],
+        GETURL: [MessageHandler(Filters.text, geturl, pass_chat_data=True)],
+        CONFIRM: [CallbackQueryHandler(confirm_callback, pass_chat_data=True)],
     },
 
-    fallbacks=[CommandHandler('cancel', cancel)],
+    fallbacks=[CommandHandler('cancel', cancel, pass_chat_data=True)],
 
     allow_reentry=True,
     conversation_timeout=30,
@@ -156,7 +172,7 @@ def login_start(bot, update):
 def getanswer(bot, update):
     answer = update.message.text
     msg = update.message.reply_text('正在登录ing', quote=True)
-    result = login(answer,s)
+    result = login(answer, s)
     bot.editMessageText(
         chat_id=update.message.chat_id, message_id=msg.message_id, text=result)
     return ConversationHandler.END
@@ -169,7 +185,7 @@ login_handler = ConversationHandler(
         GETANSWER: [MessageHandler(Filters.text, getanswer)],
     },
 
-    fallbacks=[CommandHandler('cancel', cancel)],
+    fallbacks=[CommandHandler('cancel', cancel, pass_chat_data=True)],
 
     allow_reentry=True,
 

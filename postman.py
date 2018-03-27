@@ -222,6 +222,8 @@ def get_news(url):
     dmzj_pattern = re.compile(
         r'http(s)?://(m)?news\.dmzj\.com/article/\d+\.html')
     qq_pattern = re.compile(r'http(s)?://comic\.qq\.com/a/\d+/\d+\.htm')
+    anitama_pattren = re.compile(r'http(s)?://www\.anitama\.cn/article/\w+')
+    hexieshe_pattern = re.compile(r'http(s)?://www\.(hexieshe\.com|xxshe\.xyz)/\d+/')
     if acgdog_pattern.search(url):
         url = acgdog_pattern.search(url).group()
         r = requests.get(url, headers=headers)
@@ -268,6 +270,51 @@ def get_news(url):
         news['title'] = '[{0}]{1}'.format(time, title)
         content_divs = soup.find(id="Cnt-Main-Article-QQ").find_all('p')
         img_src = 'src'
+
+    elif anitama_pattren.search(url):
+        url = anitama_pattren.search(url).group()
+        r = requests.get(url, headers=headers)
+        soup = BeautifulSoup(r.text, "lxml")
+        div=soup.find(id="area-title-article")
+        title = div.h1.text+':'+div.h2.text
+        time = div.find(class_="time")
+        if re.search(r'小时前',time.text):
+            hours=8
+        elif re.search(r'昨天',time.text):
+            hours=-24+8
+        elif re.search(r'前天',time.text):
+            hours=-24*2+8
+        else:
+            text=time.text.split(' ')[0]
+            mon=int(re.search(r'\d+(?=月)',text).group())
+            day=int(re.search(r'\d+(?=日)',text).group())
+        if 'hours' in vars():
+            china_time = datetime.datetime.utcnow() + datetime.timedelta(hours=hours)
+            china_time = china_time.timetuple()        
+            time='{0}{1:02}{2:02}'.format(china_time[0]-2000,china_time[1],china_time[2])
+        else:
+            china_time = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+            china_time = china_time.timetuple()
+            if mon > china_time[1]:
+                year = china_time[0]-2001
+            else:
+                year = china_time[0]-2000
+            time='{0}{1:02}{2:02}'.format(year,mon,day)
+        news['title'] = '[{0}]{1}'.format(time, title)
+        content_divs = soup.find(id="area-content-article").find_all('p'or'h4'or'h5'or'h3')
+        img_src = 'data-src'
+
+    elif hexieshe_pattern.search(url):
+        url = hexieshe_pattern.search(url).group().replace('hexieshe.com', 'xxshe.xyz')
+        r = requests.get(url, headers=headers, proxies=proxies)
+        soup = BeautifulSoup(r.text, "lxml")
+        soup = soup.find(id="main-content")
+        title = soup.find('h1').text.replace('\t', '').replace('\n', '').replace('\r', '')
+        time_div=soup.find(class_="entry-meta-date updated").a
+        time = time_div['href'][-6:].replace('/', '')+time_div.text.split(', ')[0].split(' ')[-1]
+        news['title'] = '[{0}]{1}'.format(time, title)
+        content_divs = soup.find(class_="entry-content clearfix").find_all('p',class_=False)
+        img_src = 'src'    
     else:
         return 0
     content = '[url]{}[/url]'.format(url)+'\n'

@@ -261,21 +261,23 @@ def get_news(url):
         soup = BeautifulSoup(r.text, "lxml")
         soup = soup.find(id="Main-Article-QQ")
         title = soup.find('h1').text.rstrip()
-        time = soup.find(class_="article-time").text[2:10].replace('-', '')
+        try:
+            time = soup.find(class_="article-time").text[2:10].replace('-', '')
+        except Exception as e:
+            time = soup.find(class_="a_time").text[2:10].replace('-', '')
         news['title'] = '[{0}]{1}'.format(time, title)
-        content_divs = soup.find(id="Cnt-Main-Article-QQ")
+        content_divs = soup.find(id="Cnt-Main-Article-QQ").find_all('p')
         img_src = 'src'
     else:
         return 0
     content = '[url]{}[/url]'.format(url)+'\n'
     for div in content_divs:
-        if div.text == '':
-            if div.find('img') != None:
-                img_url = div.find('img')[img_src]
-                content = content+'[img]{}[/img]\n'.format(img_url)
-            else:
-                pass
-        else:
+        if div.find(text=True) and div.find('script') == None:
             content = content+'{}\n'.format(div.text)
+        elif div.find('img') != None:
+            img_url = div.find('img')[img_src]
+            content = content+'[img]{}[/img]\n'.format(img_url)
+        else:
+            pass
     news['content'] = content
     return news

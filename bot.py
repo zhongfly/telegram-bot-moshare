@@ -2,7 +2,7 @@
 # python3.6
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Job, CallbackQueryHandler, ConversationHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from postman import islogin, pre_login, login, post_news, dailybonus, get_news, load_cookies
+from postman import islogin, pre_login, login, post_news, dailybonus, get_news, load_cookies,search
 import logging
 import re
 import time
@@ -105,6 +105,8 @@ def geturl(bot, update, chat_data):
         ])
         msg = update.message.reply_text(
             news['title'], quote=True, reply_markup=confirm_btn)
+        search_result=search(s,news['title'].split(']')[-1])
+        bot.editMessageText(chat_id=chat_id, message_id=msg.message_id, text=news['title']+'\n搜索结果：'+search_result, reply_markup=confirm_btn)
         chat_data['msg'] = msg.message_id
         logger.info("链接分析结果：“{}”".format(news['title']))
         return CONFIRM
